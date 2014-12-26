@@ -66,7 +66,7 @@ fileUrl <- "repdata_data_StormData.csv.bz2"
 
 if (file.exists(fileUrl) == FALSE)
 {
-    download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", method="curl")
+    download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", destfile=fileUrl, method="curl")
 }
 
 data <- read.csv(fileUrl)

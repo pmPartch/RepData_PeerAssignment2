@@ -1,0 +1,257 @@
+# Storm Damange and Injury in United States
+
+**A summary from data collected from national weather service 1950 - 2011**
+
+## Synopsis
+
+Data provided by the National Weather Service for various storm and weather condition collected from years 1950 to 2011 was analyzed to provide what weather events caused the most costly damage (property and/or crop) and what weather events caused the most heath issues (fatalities and/or injury)
+
+Due to the large number of event types recorded, a much smaller grouping was done as follows:
+
+- Heat
+- Cold
+- Wind
+- Flood
+- Storm
+- Tornado
+- Tsunami
+- Fire
+- Hail
+- Fog/smoke
+- Drowning
+- Lightning
+- Landslide/mudslide
+- Volcano
+- Other (any type not fitting into the prior ones)
+
+The analyses was further restricted to the years 1990 to 2011 (from the original data collected over 1950 to 2011) due to the rather large change in cost of living and lack of reporting of certain event types prior to 1990.
+
+The results show that, from 1990 to 2011, the largest crop/property combined damage was due to Flood, followed by Storm and then tornado events. If looking at only crop damange, then Heat is the number one costly event type.
+
+The results also show that, from 1990 to 2011, the largest heath issues (combining injure and death) was due to Tornadoes. If looking only at death, then Heat events were the leading event type.
+
+## Data Processing
+
+Load required libraries and set any global options
+```{r}
+library(knitr)
+opts_chunk$set(echo = TRUE) #yes, I know this is default, but I wished to demo how to setup up global settings
+
+if (require("dplyr", warn.conflicts=FALSE, quietly=TRUE) == FALSE)
+{
+    install.packages("dplyr")
+    library(dplyr)
+}
+
+if (require("lubridate", warn.conflicts=FALSE, quietly=TRUE) == FALSE)
+{
+    install.packages("lubridate")
+    library(lubridate)
+}
+
+if (require("gridExtra", warn.conflicts=FALSE, quietly=TRUE) == FALSE)
+{
+    install.packages("gridExtra")
+    library(gridExtra)
+}
+
+```
+
+Check if data file is currently in the working directory. Download the file if it is not locally available and then load the file into memory.
+
+```{r, cache=TRUE}
+
+#NOTE: seems that read.csv can parse the bz2 zip format just fine. No need to explicitly unzip it.
+fileUrl <- "repdata_data_StormData.csv.bz2" 
+
+if (file.exists(fileUrl) == FALSE)
+{
+    download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", method="curl")
+}
+
+data <- read.csv(fileUrl)
+
+rows <- nrow(data)
+numberOfEvents <- length(unique(data$EVTYPE))
+
+```
+The data has a total of `r rows` rows and a huge number of event types (total of `r numberOfEvents` unique elements). Therefore, an attempt to combine these events into a much smaller set is done by using regular expressions by parsing the set of unique EVTYPE elements and grouping like elements together
+```{r}
+
+evtypes <- unique(data$EVTYPE) #obtain total unique EVTYPE names
+
+# assign grouping 
+
+heatEvents <- evtypes[grepl("^.*(WARMTH|DROUGHT|HEAT|Heatburst).*$",evtypes, ignore.case=TRUE)]
+coldEvents <- evtypes[grepl("^.*(AVALANCE|AVALANCHE|BLIZZARD|SNOW|COLD|Freeze|FROST|snowfall|GLAZE|HYPOTHERMIA|ICE|THUNDERSNOW|CHILL|Freezing|ICY).*$",evtypes, ignore.case=TRUE)]
+windEvents <- evtypes[grepl("^.*(MICROBURST|FUNNEL|GUSTNADO|WND|WIND).*$",evtypes, ignore.case=TRUE)]
+floodEvents <- evtypes[grepl("^.*(FLOOD|Flooding).*$",evtypes, ignore.case=TRUE)]
+stormEvents <- evtypes[grepl("^.*(STORM|WETNESS|PRECIPATATION|RAIN|HURRICANE|THUNDERSTORM|TROPICAL STORM).*$",evtypes, ignore.case=TRUE)]
+tornadoEvents <- evtypes[grepl("^.*(TORNADO).*$",evtypes, ignore.case=TRUE)]
+tsunamiEvents <- evtypes[grepl("^.*(TSUNAMI).*$",evtypes, ignore.case=TRUE)]
+fireEvents <- evtypes[grepl("^.*(FIRE).*$",evtypes, ignore.case=TRUE)]
+hailEvents <- evtypes[grepl("^.*(HAIL).*$",evtypes, ignore.case=TRUE)]
+fogEvents <- evtypes[grepl("^.*(Fog|smoke).*$",evtypes, ignore.case=TRUE)]
+drowningEvents <- evtypes[grepl("^.*(DROWNING).*$",evtypes, ignore.case=TRUE)]
+lightningEvents <- evtypes[grepl("^.*(LIGHTNING|LIGHTING|LIGNTNING).*$",evtypes, ignore.case=TRUE)]
+landslideEvents <- evtypes[grepl("^.*(LANDSLIDE|MUDSLIDES|MUDSLIDE).*$",evtypes, ignore.case=TRUE)]
+volcanoEvents <- evtypes[grepl("^.*(Volcanic).*$",evtypes, ignore.case=TRUE)]
+
+# define the new group factors
+eventFactors <- factor(c("Heat","Cold","Wind","Flood","Storm","Tornado","Tsunami","Fire","Hail","Fog","Drowning","Lightning","Landslide","Volcano","Other"))
+
+#now create a new column named 'EventType' to hold the new group names
+data$EventType <- factor(ifelse(data$EVTYPE %in% heatEvents,"Heat",
+                         ifelse(data$EVTYPE %in% coldEvents,"Cold",
+                         ifelse(data$EVTYPE %in% windEvents,"Wind",
+                         ifelse(data$EVTYPE %in% floodEvents,"Flood",
+                         ifelse(data$EVTYPE %in% stormEvents,"Storm",
+                         ifelse(data$EVTYPE %in% tornadoEvents,"Tornado",
+                         ifelse(data$EVTYPE %in% tsunamiEvents,"Tsunami",
+                         ifelse(data$EVTYPE %in% fireEvents,"Fire",
+                         ifelse(data$EVTYPE %in% hailEvents,"Hail",
+                         ifelse(data$EVTYPE %in% fogEvents,"Fog",
+                         ifelse(data$EVTYPE %in% drowningEvents,"Drowning",
+                         ifelse(data$EVTYPE %in% lightningEvents,"Lightning",
+                         ifelse(data$EVTYPE %in% landslideEvents,"Landslide",
+                         ifelse(data$EVTYPE %in% volcanoEvents,"Volcano","Other")))))))))))))))
+
+numberOfNewEvents <- length(eventFactors)
+```
+
+The new limited number of event types are now down from a count of `r numberOfEvents` to `r numberOfNewEvents`. A more manageable number.
+
+Now start to perform some conversions and sub-setting to reduce this table in size, and provide two tables (one for property/crop damage and one for injure/fatality data)
+```{r}
+
+#attempt a first subset of data to be used to generate the two new tables (I keep the EVTYPE for verification/debug)
+data2 <- data[,c("BGN_DATE","EVTYPE","FATALITIES","INJURIES","PROPDMG","PROPDMGEXP","CROPDMG","CROPDMGEXP","EventType")]
+
+#convert BGN_DATE to POSIX
+data2$BGN_DATE <- mdy_hms(data2$BGN_DATE)
+
+#setup a year column
+data2$Year <- year(data2$BGN_DATE)
+
+#now drop the BGN_DATE
+data2 <- data2[,c("Year","EVTYPE","FATALITIES","INJURIES","PROPDMG","PROPDMGEXP","CROPDMG","CROPDMGEXP","EventType")]
+
+###################################################
+#now construct table for fatalities and injuries. Remove all rows with zero in both columns
+harmfuldf <- data2[data2$FATALITIES > 0 | data2$INJURIES > 0,]
+
+#strip out the unused columns
+harmfuldf <- harmfuldf[,c("Year","FATALITIES","INJURIES","EventType")]
+
+#see table in results below
+
+###################################################
+#now construct the table for property/crop damage
+
+#note that the property and crop exponents are not all valid (some are missing, some are digits an other odd things)
+#so remove the rows with these anomalies (none of the rows with missing exponents make sense)
+#only keep exponents in this following collection
+
+setOfValidExp <- c("H","K","M","B","h","k","m","b")
+
+#keep only rows with valid exponents if the DMG value is non-zero for either CROP or PROP
+costlydf <-  data2[( data2$PROPDMG > 0 &  data2$PROPDMGEXP %in% setOfValidExp) | 
+                   ( data2$CROPDMG > 0 &  data2$CROPDMGEXP %in% setOfValidExp),]
+
+#now normalize the cost (use the exponents to setup dollar amounts). Set value to Millions
+costInMillons <- function(cost, exponent)
+{
+    if (cost == 0)
+        return (0)
+    
+    #assume cost is non zero and exponent is of valid set: c("H","K","M","B","h","k","m","b")
+    exponent <- toupper(exponent)
+    dollar <- 0.0
+    
+    millNormalize = 1000000.0
+    
+    switch (exponent, 
+            "H" = dollar <- cost*100,
+            "K" = dollar <- cost*1000,
+            "M" = dollar <- cost*1000000,
+            "B" = dollar <- cost*1000000000)
+    
+    dollar/millNormalize
+}
+
+#now convert the cost values to millions and remove the exponent columns
+
+costlydf$PROPDMG <- mapply(costInMillons,costlydf$PROPDMG,costlydf$PROPDMGEXP)
+costlydf$CROPDMG <- mapply(costInMillons,costlydf$CROPDMG,costlydf$CROPDMGEXP)
+costlydf <- costlydf[, c("Year","EVTYPE","PROPDMG","CROPDMG","EventType")] #I'm keeping EVTYPE for debugging purposes
+
+#see table in results below
+```
+There is an issue remaining...what to do about inflation due to the data coming from 1950 to 2011. The following data is from [US Goverment Infation Calculator](http://www.bls.gov/data/inflation_calculator.htm). Sorry, but I did not have sufficient time to problematically acquire this data (so maybe not so reproducible)...maybe next time.
+```{r}
+
+#look at http://www.bls.gov/data/inflation_calculator.htm
+#
+# 1950 $1.00 => 2011 $9.33
+#
+#(this is the reason why you could by a hamburger for 15 cents in 1950)
+
+#estimate of dollar value  ($1.00 in 1950) over course of study: 1950 - 2011
+dollarValueInYear <- c(1.00, 1.08, 1.10, 1.11, 1.12, 1.11, 1.13, 1.17, 1.20, 1.21, #1950's
+                       1.23, 1.24, 1.25, 1.27, 1.29, 1.31, 1.34, 1.39, 1.44, 1.51, #1960's
+                       1.61, 1.68, 1.73, 1.84, 2.05, 2.23, 2.36, 2.51, 2.71, 3.01, #1970's
+                       3.42, 3.77, 4.00, 4.13, 4.31, 4.46, 4.55, 4.71, 4.91, 5.15, #1980's
+                       5.42, 5.65, 5.82, 6.00, 6.15, 6.32, 6.51, 6.66, 6.76, 6.91, #1990's
+                       7.15, 7.35, 7.46, 7.63, 7.84, 8.10, 8.37, 8.60, 8.93, 8.90, #2000's
+                       9.05, 9.33) #2010's
+
+dollarworth1950 <- dollarValueInYear[62]
+dollarworth1990 <- dollarValueInYear[62]-dollarValueInYear[41]
+
+year <- seq_along(along.with=dollarValueInYear) + 1949
+
+infationdf <- data.frame(Year=year, DollarWorth = dollarValueInYear)
+
+#see plot in results below
+```
+
+## Results
+
+Due to the inflation rate between 1950 and 2011 (a 1950 dollar being about `r dollarworth1950` in 2011 dollars) I've decided to reduce the data set to limit it from 1990 to 2011. In fact, even this is about an issue since a 1990 dollar is worth `r dollarworth1990` in 2011 . A further attempt on this analysis would be to adjust the dollar figures to account for this.
+
+```{r}
+plot(infationdf$Year,infationdf$DollarWorth,type="l",xlab="Year", ylab="1950 dollar worth (based on CPI)", main="Inflation 1950 to 2011")
+
+```
+
+
+The numbers from 1990 to 2011 and 1950 to 2011 show the same results for maximum heath problems. I wonder why the drowning number is so low. Note that the 'Fog' category also includes smoke.
+```{r}
+
+plotHarmData <- filter(harmfuldf,Year>= 1990) %>%
+    group_by(EventType) %>%
+    summarize(Total.Fatailites = sum(FATALITIES), 
+              Total.Injuries = sum(INJURIES), 
+              Total.Harm = sum(FATALITIES)+sum(INJURIES)) 
+
+plotHarmData <- plotHarmData[with(plotHarmData, order(Total.Harm)),]
+
+grid.arrange(tableGrob(plotHarmData), main="Health Issues from 1990 to 2011 (Number of People)")
+
+```
+
+The cost due to specific types of events as shown below. The odd item seems to be 'fog' prop damage but I include smoke damage in with the fog event (see the regular expression in the code chunk: )
+
+```{r}
+
+plotCostData <- filter(costlydf, Year >= 1990) %>%
+    group_by(EventType) %>%
+    summarize(Total.PropertyDamange = sum(PROPDMG), 
+              Total.CropDamage = sum(CROPDMG), 
+              Total.Damage = sum(PROPDMG)+sum(CROPDMG))
+
+plotCostData <- plotCostData[with(plotCostData, order(Total.Damage)),] #sort on total damage
+
+grid.arrange(tableGrob(plotCostData), main="Total Damange from 1990 to 2011 (Millions of Dollars)")
+
+```

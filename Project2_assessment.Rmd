@@ -239,6 +239,13 @@ plotHarmData <- plotHarmData[with(plotHarmData, order(Total.Harm)),]
 grid.arrange(tableGrob(plotHarmData), main="Health Issues from 1990 to 2011 (Number of People)")
 
 ```
+and here is the harm missing plot
+```{r}
+par(las=2)
+barplot(plotHarmData$Total.Harm, names.arg=as.character(plotHarmData$EventType), horiz=T, xlim=c(0,30000))
+
+```
+
 
 The cost due to specific types of events as shown below. The odd item seems to be 'fog' prop damage but I include smoke damage in with the fog event (see the regular expression in the code chunk: )
 
@@ -255,3 +262,8 @@ plotCostData <- plotCostData[with(plotCostData, order(Total.Damage)),] #sort on 
 grid.arrange(tableGrob(plotCostData), main="Total Damange from 1990 to 2011 (Millions of Dollars)")
 
 ```
+
+Here is the missing bar plot
+```{r}
+par(las=2)
+barplot(plotCostData$Total.Damage, names.arg=as.character(plotCostData$EventType), horiz=T, xlim=c(0,200000.0))

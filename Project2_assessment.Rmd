@@ -227,7 +227,7 @@ plot(infationdf$Year,infationdf$DollarWorth,type="l",xlab="Year", ylab="1950 dol
 
 The numbers from 1990 to 2011 and 1950 to 2011 show the same results for maximum heath problems. I wonder why the drowning number is so low. Note that the 'Fog' category also includes smoke.
 ```{r}
-
+par(mfrow = c(1,1), mar=c(4,4,2,1))
 plotHarmData <- filter(harmfuldf,Year>= 1990) %>%
     group_by(EventType) %>%
     summarize(Total.Fatailites = sum(FATALITIES), 
@@ -238,9 +238,6 @@ plotHarmData <- plotHarmData[with(plotHarmData, order(Total.Harm)),]
 
 grid.arrange(tableGrob(plotHarmData), main="Health Issues from 1990 to 2011 (Number of People)")
 
-```
-and here is the harm missing plot
-```{r}
 par(las=2)
 barplot(plotHarmData$Total.Harm, names.arg=as.character(plotHarmData$EventType), horiz=T, xlim=c(0,30000))
 

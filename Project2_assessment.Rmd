@@ -2,6 +2,11 @@
 
 **A summary from data collected from national weather service 1950 - 2011**
 
+### Note to Graders
+
+This work was originally done a year ago. I'm now taking the class again with verification. The original work was posted at (http://rpubs.com/pmPartch/51839). This version of the work was changed slightly (additional bar plots added along with required changes to the grid.arrange calls since 'main' param was changed to 'top' and some spelling corrections)  
+I've placed the reproducible source on my GitHub site for this current work at  (https://github.com/pmPartch/RepData_PeerAssignment2)
+
 ## Synopsis
 
 Data provided by the National Weather Service for various storm and weather condition collected from years 1950 to 2011 was analyzed to provide what weather events caused the most costly damage (property and/or crop) and what weather events caused the most heath issues (fatalities and/or injury)
@@ -26,7 +31,7 @@ Due to the large number of event types recorded, a much smaller grouping was don
 
 The analyses was further restricted to the years 1990 to 2011 (from the original data collected over 1950 to 2011) due to the rather large change in cost of living and lack of reporting of certain event types prior to 1990.
 
-The results show that, from 1990 to 2011, the largest crop/property combined damage was due to Flood, followed by Storm and then tornado events. If looking at only crop damange, then Heat is the number one costly event type.
+The results show that, from 1990 to 2011, the largest crop/property combined damage was due to Flood, followed by Storm and then tornado events. If looking at only crop damage, then Heat is the number one costly event type.
 
 The results also show that, from 1990 to 2011, the largest heath issues (combining injure and death) was due to Tornadoes. If looking only at death, then Heat events were the leading event type.
 
@@ -227,7 +232,9 @@ plot(infationdf$Year,infationdf$DollarWorth,type="l",xlab="Year", ylab="1950 dol
 
 The numbers from 1990 to 2011 and 1950 to 2011 show the same results for maximum heath problems. I wonder why the drowning number is so low. Note that the 'Fog' category also includes smoke.
 ```{r}
+
 par(mfrow = c(1,1), mar=c(4,4,2,1))
+
 plotHarmData <- filter(harmfuldf,Year>= 1990) %>%
     group_by(EventType) %>%
     summarize(Total.Fatailites = sum(FATALITIES), 
@@ -236,10 +243,10 @@ plotHarmData <- filter(harmfuldf,Year>= 1990) %>%
 
 plotHarmData <- plotHarmData[with(plotHarmData, order(Total.Harm)),]
 
-grid.arrange(tableGrob(plotHarmData), main="Health Issues from 1990 to 2011 (Number of People)")
+grid.arrange(tableGrob(plotHarmData),top="Health Issues from 1990 to 2011 (Number of People)")
 
 par(las=2)
-barplot(plotHarmData$Total.Harm, names.arg=as.character(plotHarmData$EventType), horiz=T, xlim=c(0,30000))
+barplot(plotHarmData$Total.Harm, names.arg=as.character(plotHarmData$EventType), horiz=T, xlim=c(0,30000), main="Health Issues from 1990 to 2011 (Number of People)")
 
 ```
 
@@ -256,11 +263,11 @@ plotCostData <- filter(costlydf, Year >= 1990) %>%
 
 plotCostData <- plotCostData[with(plotCostData, order(Total.Damage)),] #sort on total damage
 
-grid.arrange(tableGrob(plotCostData), main="Total Damange from 1990 to 2011 (Millions of Dollars)")
+grid.arrange(tableGrob(plotCostData), top="Total Damange from 1990 to 2011 (Millions of Dollars)")
 
 ```
 
-Here is the missing bar plot
+And the associated bar plot
 ```{r}
 par(las=2)
-barplot(plotCostData$Total.Damage, names.arg=as.character(plotCostData$EventType), horiz=T, xlim=c(0,200000.0))
+barplot(plotCostData$Total.Damage, names.arg=as.character(plotCostData$EventType), horiz=T, xlim=c(0,200000.0), main="Total Damange from 1990 to 2011 (Millions of Dollars)")

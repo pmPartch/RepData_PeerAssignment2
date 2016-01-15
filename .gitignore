@@ -1,5 +1,8 @@
 .Rhistory
+.RData
 .Rproj.user/
+rsconnect/
 Project2_assessment_cache/
+Project2_assessment_files/
 repdata_data_StormData.csv.bz2
 RepData_PeerAssignment2.Rproj
